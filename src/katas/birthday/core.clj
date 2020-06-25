@@ -9,40 +9,46 @@
     (java.time.format DateTimeFormatter)
     (java.time.temporal ChronoUnit)))
 
+
+(defn row->map [row]
+  (zipmap [:name :email :date] row))
+
 (defn load-csv [path]
-  (->> path io/resource io/reader csv/read-csv rest))
+  (->> path io/resource io/reader csv/read-csv rest (map row->map)))
 
-(defn birthday-today? [[_ _ date]]
-  (string/ends-with? date
-                     (.format (LocalDate/now) (DateTimeFormatter/ofPattern "MM/dd"))))
+(defn birthday-today? [now date]
+  (string/ends-with? date (.format now (DateTimeFormatter/ofPattern "MM/dd"))))
 
-(defn years-elapsed-since [date]
+(defn years-elapsed-since [now date]
   (.between ChronoUnit/YEARS
             (LocalDate/parse date
                              (DateTimeFormatter/ofPattern "yyyy/MM/dd"))
-            (LocalDate/now)))
+            now))
 
-(defn build-message [[name email date]]
+(defn build-message [now {:keys [name email date]}]
   {:from    "me@example.com"
    :to      email
    :subject "Happy Birthday!"
    :body    (str "Happy Birthday " name "! "
                  "Wow, you're "
-                 (years-elapsed-since date)
+                 (years-elapsed-since now date)
                  " years already!")})
 
-(defn send-message! [row]
+(defn send-message! [now row]
   (->> row
-       build-message
+       (build-message now)
        (postal/send-message
          {:host "localhost"
           :user "azurediamond"
           :pass "hunter2"
           :port 2525})))
 
+(defn- now []
+  (LocalDate/now))
+
 (defn greet! []
   (->> "birthday/employees.csv"
        load-csv
-       (filter birthday-today?)
-       (map send-message!)
+       (filter #(birthday-today? (now) (:date %)))
+       (map (partial send-message! (now)))
        doall))

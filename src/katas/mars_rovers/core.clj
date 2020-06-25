@@ -33,7 +33,9 @@
       {:position [(first location) (second location) dir]}
       (let [cmd (first instr)]
         (recur (new-direction dir cmd)
-               (if (= :M cmd) (move plateau dir location) location)
+               (if (= :M cmd)
+                 (move plateau dir location)
+                 location)
                (rest instr))))))
 
 (defn go!
